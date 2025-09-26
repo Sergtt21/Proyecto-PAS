@@ -1,6 +1,11 @@
-opencv-python
-mediapipe
-numpy
-scipy
-aiogram
-python-dotenv
+# Comunicación interna (bus con Redis) 
+redis>=5.0
+python-dotenv>=1.0
+
+# Bot Telegram 
+aiogram>=3.4
+
+# Visión por computadora 
+opencv-python>=4.8
+mediapipe>=0.10
+numpy>=1.24
