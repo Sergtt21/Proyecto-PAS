@@ -1,0 +1,7 @@
+opencv-python>=4.10
+mediapipe>=0.10
+numpy>=1.26
+scipy>=1.11
+aiogram>=3.5
+python-dotenv>=1.0
+redis>=5.0
