@@ -50,10 +50,10 @@ async def _event_consumer(bot: Bot):
                 text = GESTO_TO_TEXT.get(name)
                 if text:
                     await bot.send_message(chat_id, text)
-                    logger.info(f"🤖 Gesto {name} → enviado a {chat_id}")
+                    logger.info(f"Gesto {name} → enviado a {chat_id}")
 
         except Exception:
-            logger.exception("❌ Error en _event_consumer")
+            logger.exception("Error en _event_consumer")
 
 async def start_bot():
     bot = Bot(
@@ -66,23 +66,23 @@ async def start_bot():
     async def cmd_start(m: Message):
         chat_id = m.chat.id
         logger.info(f"Usuario {chat_id} inició el bot con /start")
-        await m.answer("🤖 Bot activo.\nYa puedes recibir notificaciones.")
+        await m.answer("Bot activo.\nYa puedes recibir notificaciones.")
 
     @dp.message(Command("ping"))
     async def cmd_ping(m: Message):
         await m.answer("pong ✅")
 
     asyncio.create_task(_event_consumer(bot))
-    logger.info("🚀 Bot iniciado. Esperando mensajes...")
+    logger.info("Bot iniciado. Esperando mensajes...")
 
     try:
         await dp.start_polling(bot)
     finally:
-        logger.info("🛑 Cerrando bot y liberando recursos...")
+        logger.info("Cerrando bot y liberando recursos...")
         await bot.session.close()
 
 if __name__ == "__main__":
     try:
         asyncio.run(start_bot())
     except (KeyboardInterrupt, SystemExit):
-        logger.info("🛑 Bot detenido manualmente.")
+        logger.info("Bot detenido manualmente.")
