@@ -8,7 +8,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from dotenv import load_dotenv
 
-from .bus import get, Event  #import relativo
+from .bus import get, Event  # import relativo
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,9 +21,13 @@ TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 if not TOKEN:
     raise RuntimeError("Falta TELEGRAM_BOT_TOKEN en el archivo .env")
 
+# Mapeo de gestos → mensajes
 GESTO_TO_TEXT = {
     "DOUBLE_BLINK": "Hola 👋",
     "BROW_UP": "Ya voy 🚗",
+    "SMILE": "Todo bien 😄",
+    "NOD": "OK ✅",
+    "SHAKE_HEAD": "No ❌"
 }
 
 async def _event_consumer(bot: Bot):
@@ -50,7 +54,9 @@ async def _event_consumer(bot: Bot):
                 text = GESTO_TO_TEXT.get(name)
                 if text:
                     await bot.send_message(chat_id, text)
-                    logger.info(f"Gesto {name} → enviado a {chat_id}")
+                    logger.info(f"Gesto {name} → enviado a {chat_id} ({text})")
+                else:
+                    logger.warning(f"Gesto {name} no reconocido.")
 
         except Exception:
             logger.exception("Error en _event_consumer")
@@ -65,8 +71,9 @@ async def start_bot():
     @dp.message(Command("start"))
     async def cmd_start(m: Message):
         chat_id = m.chat.id
+        logger.info(f"ID del chat: {m.chat.id}")
         logger.info(f"Usuario {chat_id} inició el bot con /start")
-        await m.answer("Bot activo.\nYa puedes recibir notificaciones.")
+        await m.answer("Bot activo.\nYa puedes recibir notificaciones de gestos.")
 
     @dp.message(Command("ping"))
     async def cmd_ping(m: Message):
