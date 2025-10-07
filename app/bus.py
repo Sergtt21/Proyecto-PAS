@@ -8,6 +8,11 @@ from typing import Any, Dict, Optional
 import redis
 from dotenv import load_dotenv
 
+# Importar el módulo de manejo de logs
+from .managelog import manejo_errores
+
+manejo_errores(nivel_warning="ignore", verbose=False) 
+
 load_dotenv()
 
 REDIS_URL = os.getenv("REDIS_URL", "").strip()
@@ -48,3 +53,13 @@ def get(block: bool = True, timeout: int = 5) -> Optional[Event]:
     if "ts" not in obj:
         obj["ts"] = time.time()
     return Event(**obj)
+
+def publish_gesture(name: str, chat_id: Optional[int] = None) -> None:
+    ev = Event(
+        kind="GESTO",
+        payload={
+            "name": name,
+            "chat_id": chat_id
+        }
+    )
+    put(ev)

@@ -5,6 +5,11 @@ import numpy as np
 import cv2
 from typing import Dict, List, Tuple
 
+# Importar el módulo de manejo de logs
+from .managelog import manejo_errores
+
+manejo_errores(nivel_warning="ignore", verbose=False) 
+
 # -----------------------------
 # Índices MediaPipe Face Mesh
 # -----------------------------
