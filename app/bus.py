@@ -48,3 +48,13 @@ def get(block: bool = True, timeout: int = 5) -> Optional[Event]:
     if "ts" not in obj:
         obj["ts"] = time.time()
     return Event(**obj)
+
+def publish_gesture(name: str, chat_id: Optional[int] = None) -> None:
+    ev = Event(
+        kind="GESTO",
+        payload={
+            "name": name,
+            "chat_id": chat_id
+        }
+    )
+    put(ev)
