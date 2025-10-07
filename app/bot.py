@@ -23,11 +23,11 @@ if not TOKEN:
 
 # Mapeo de gestos → mensajes
 GESTO_TO_TEXT = {
-    "DOUBLE_BLINK": "Hola 👋",
-    "BROW_UP": "Ya voy 🚗",
-    "SMILE": "Todo bien 😄",
-    "NOD": "OK ✅",
-    "SHAKE_HEAD": "No ❌"
+    "DOBLE_PARPADEO": "Hola 👋",
+    "CEJAS_ARRIBA": "Ya voy 🚗",
+    "SONRISA": "Todo bien 😄",
+    "CABEZA_DERECHA": "OK ✅",
+    "CABEZA_IZQUIERDA": "No ❌"
 }
 
 async def _event_consumer(bot: Bot):
