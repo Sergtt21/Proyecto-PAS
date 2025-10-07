@@ -1,21 +1,14 @@
-# reconocimiento_facial.py
 import cv2
 import mediapipe as mp
 import numpy as np
 from scipy.spatial.distance import euclidean 
-import sys # Necesario para el manejo directo de excepciones y sys.exit(0)
+import sys 
 
 # Importar el módulo de manejo de logs
 from managelog import manejo_errores
 
-# ----------------------------------------------------
-# 1. CONFIGURACIÓN INICIAL (Llamada al módulo externo)
-# ----------------------------------------------------
-# Se ignoran todos los warnings generados por librerías (como MediaPipe)
 manejo_errores(nivel_warning="ignore") 
 
-
-# --- Constantes y Variables Iniciales (Sin Cambios) ---
 ESTADO_IDLE = 0
 ESTADO_DETECTADO = 1
 ESTADO_CONFIRMADO = 2
