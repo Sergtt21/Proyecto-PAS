@@ -17,6 +17,7 @@ manejo_errores(nivel_warning="ignore", verbose=False)
 load_dotenv()
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 CHAT_ID = int(CHAT_ID) if CHAT_ID and CHAT_ID.isdigit() else None
+DEBUG = os.getenv("DEBUG", "false").strip().lower() == "true"  # NUEVO: modo debug
 
 # Solo para HUD 
 GESTO_A_TEXTO = {
@@ -65,6 +66,10 @@ def _dibujar_hud(frame, fsm: FSM, metricas):
         s = f"EAR:{metricas.get('EAR',0):.3f}  MAR:{metricas.get('MAR',0):.3f}  BROW:{metricas.get('BROW',0):.1f}  YAW:{metricas.get('YAW',0):.1f}°"
         cv2.putText(frame, s, (40, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1)
 
+    # NUEVO: Banner visual de modo debug (no interfiere con nada)
+    if DEBUG:
+        cv2.putText(frame, "DEBUG ON", (w-160, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 200, 255), 2)
+
 def start_gesture_detection():
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
@@ -99,6 +104,17 @@ def start_gesture_detection():
             # MAR baseline
             mar_vals.append( mouth_aspect_ratio(pts) )
 
+        # NUEVO: barra de progreso + texto "Calibrando rostro..."
+        progress = min(1.0, (time.time() - t0) / 3.0)
+        h, w = frame.shape[:2]
+        bar_x1, bar_y1 = 50, h - 60
+        bar_x2, bar_y2 = w - 50, h - 30
+        filled = int(bar_x1 + progress * (bar_x2 - bar_x1))
+        cv2.rectangle(frame, (bar_x1, bar_y1), (bar_x2, bar_y2), (40, 40, 40), -1)
+        cv2.rectangle(frame, (bar_x1, bar_y1), (filled, bar_y2), (0, 200, 0), -1)
+        cv2.putText(frame, "Calibrando rostro...", (bar_x1, bar_y1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,255), 2)
+
         cv2.putText(frame, "Calibrando... (ESC para saltar)", (30, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2)
         cv2.imshow("Vision", frame)
@@ -111,10 +127,22 @@ def start_gesture_detection():
             float(np.median(brow_vals)),
             float(np.median(mar_vals)),
         )
+        # NUEVO: logs de calibración y umbrales si DEBUG=True
+        if DEBUG:
+            print(f"[DEBUG] Calibracion OK → EAR_base={np.median(ear_vals):.3f} "
+                  f"BROW_base={np.median(brow_vals):.3f} MAR_base={np.median(mar_vals):.3f} "
+                  f"EAR_THRESH(aplicado)={detector.EAR_THRESH:.3f}")
+    else:
+        if DEBUG:
+            print("[DEBUG] Calibracion incompleta; se usan valores por defecto.")
     print("Calibración OK.")
 
     # ---------- Loop principal ----------
     metricas = {}
+    # NUEVO: contador FPS simple (solo logs si DEBUG)
+    t_start = time.time()
+    frames = 0
+
     while True:
         ok, frame = cap.read()
         if not ok:
@@ -146,6 +174,14 @@ def start_gesture_detection():
         cv2.imshow("Vision", frame)
         if (cv2.waitKey(1) & 0xFF) == 27:
             break
+
+        # NUEVO: FPS a consola si DEBUG cada ~60 frames
+        if DEBUG:
+            frames += 1
+            if frames % 60 == 0:
+                elapsed = time.time() - t_start
+                fps = frames / max(1e-6, elapsed)
+                print(f"[DEBUG] FPS ~ {fps:.1f}")
 
     cap.release()
     cv2.destroyAllWindows()
