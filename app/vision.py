@@ -9,11 +9,16 @@ from dotenv import load_dotenv
 from .bus import put, Event
 from .gestures import GestureDetector, LEFT_EYE, RIGHT_EYE, eye_aspect_ratio, mouth_aspect_ratio, LEFT_BROW_POINT, RIGHT_BROW_POINT, LEFT_EYE_CENTER, RIGHT_EYE_CENTER
 
+# Importar el módulo de manejo de logs
+from .managelog import manejo_errores
+
+manejo_errores(nivel_warning="ignore", verbose=False) 
+
 load_dotenv()
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 CHAT_ID = int(CHAT_ID) if CHAT_ID and CHAT_ID.isdigit() else None
 
-# Solo para HUD (el bot tendrá su propio diccionario igual en español)
+# Solo para HUD 
 GESTO_A_TEXTO = {
     "DOBLE_PARPADEO":   "Hola 👋",
     "CEJAS_ARRIBA":     "Ya voy 🚗",

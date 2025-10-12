@@ -19,14 +19,18 @@ Prerequisitos para ejecutar la prueba:
 Resultado esperado:
     Deberías recibir en Telegram el mensaje: "✅ Prueba BUS → BOT".
 """
-
 import os
 from dotenv import load_dotenv
-from app.bus import put, Event  # 👈 import desde paquete app
+from app.bus import publish_gesture
+
 
 load_dotenv()
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 assert CHAT_ID, "⚠️ Falta TELEGRAM_CHAT_ID en el archivo .env"
 
-put(Event(kind="SEND_TEXT", payload={"chat_id": CHAT_ID, "text": "✅ Prueba BUS → BOT"}))
-print("Evento publicado ✔️")
+# Lista de gestos de prueba
+gestos = ["DOBLE_PARPADEO", "CEJAS_ARRIBA", "SONRISA", "CABEZA_DERECHA", "CABEZA_IZQUIERDA"]
+
+for g in gestos:
+    publish_gesture(g, chat_id=CHAT_ID)
+    print(f"Evento de gesto {g} enviado ✔️")
