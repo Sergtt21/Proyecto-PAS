@@ -21,15 +21,16 @@ Resultado esperado:
 """
 import os
 from dotenv import load_dotenv
-from app.bus import put, Event
+from app.bus import publish_gesture
 
 load_dotenv()
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 assert CHAT_ID, "⚠️ Falta TELEGRAM_CHAT_ID en el archivo .env"
 
 # Lista de gestos de prueba
-gestos = ["DOUBLE_BLINK", "BROW_UP", "SMILE", "NOD", "SHAKE_HEAD"]
+gestos = ["DOBLE_PARPADEO", "CEJAS_ARRIBA", "SONRISA", "CABEZA_DERECHA", "CABEZA_IZQUIERDA"]
 
 for g in gestos:
-    put(Event(kind="GESTO", payload={"chat_id": CHAT_ID, "name": g}))
+    publish_gesture(g, chat_id=CHAT_ID)
     print(f"Evento de gesto {g} enviado ✔️")
+

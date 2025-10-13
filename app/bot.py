@@ -9,7 +9,10 @@ from aiogram.client.default import DefaultBotProperties
 from dotenv import load_dotenv
 
 from .bus import get, Event  # import relativo
+# Importar el módulo de manejo de logs
+from .managelog import manejo_errores
 
+manejo_errores(nivel_warning="ignore", verbose=False) 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
@@ -23,11 +26,11 @@ if not TOKEN:
 
 # Mapeo de gestos → mensajes
 GESTO_TO_TEXT = {
-    "DOBLE_PARPADEO": "Hola 👋",
-    "CEJAS_ARRIBA": "Ya voy 🚗",
-    "SONRISA": "Todo bien 😄",
-    "CABEZA_DERECHA": "OK ✅",
-    "CABEZA_IZQUIERDA": "No ❌"
+    "DOBLE_PARPADEO":   "Hola 👋",
+    "CEJAS_ARRIBA":     "Ya voy 🚗",
+    "SONRISA":          "Todo bien 😄",
+    "CABEZA_DERECHA":   "OK ✅",
+    "CABEZA_IZQUIERDA": "No ❌",
 }
 
 async def _event_consumer(bot: Bot):
