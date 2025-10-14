@@ -3,8 +3,6 @@ import mediapipe as mp
 import numpy as np
 from scipy.spatial.distance import euclidean 
 import sys 
-
-# Importar el módulo de manejo de logs
 from managelog import manejo_errores
 
 manejo_errores(nivel_warning="ignore") 
@@ -62,11 +60,13 @@ def check_inclinacion(rostro_landmarks):
 
 #exepciones
 captura = None
+
 try:
+    # Se debe modificar dependiendo  de la camara o equipo
     captura = cv2.VideoCapture(0)
     if not captura.isOpened():
         raise IOError("No se pudo abrir la cámara. Verifica si está conectada o disponible.")
-    
+
     captura.set(3, 1280)  # Ancho
     captura.set(4, 720)   # Alto
 
@@ -105,7 +105,7 @@ try:
                 elif mar > UMBRAL_MAR_ABIERTO:
                     gesto_detectado_actual = "BOCA ABIERTA"
                     
-                # Dibujo (Malla, ratios, caja, etc.)
+                # Dibujo
                 mpfm.draw_landmarks(image=frame, landmark_list=rostros, connections=mp_face_mesh.FACEMESH_TESSELATION, 
                                     landmark_drawing_spec=cdj, connection_drawing_spec=mpfm.DrawingSpec((255, 0, 0), thickness=t, circle_radius=r))
                 
@@ -127,7 +127,7 @@ try:
             else:
                 cv2.putText(frame, 'No se detecta rostro', (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             
-            # Lógica de Máquina de Estados (IDLE, DETECTADO, CONFIRMADO)
+            # maquina de Estados (IDLE, DETECTADO, CONFIRMADO)
             if estado_actual == ESTADO_IDLE:
                 cv2.putText(frame, "ESTADO: IDLE", (20, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
                 if gesto_detectado_actual:
@@ -164,14 +164,14 @@ try:
             break 
 
 except IOError as e:
-    # Captura errores críticos de inicialización (ej: cámara no disponible)
+    # Captura errores críticos de inicialización 
     print(f"ERROR CRÍTICO: {e}", file=sys.stderr)
 except Exception as e:
     # Captura cualquier otro error de inicialización
     print(f"ERROR CRÍTICO INESPERADO: {e}", file=sys.stderr)
 
 finally:
-    # 2.3. Bloque de Limpieza (Se ejecuta SIEMPRE)
+    # Bloque de Limpieza 
     if captura and captura.isOpened():
         print("Liberando recursos de la cámara...")
         captura.release()
