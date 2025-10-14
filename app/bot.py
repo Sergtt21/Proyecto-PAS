@@ -1,23 +1,32 @@
 import os
 import asyncio
 import logging
+import time
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command
 from aiogram.types import Message
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from dotenv import load_dotenv
-
+from collections import defaultdict
 from .bus import get, Event  # import relativo
+
 # Importar el módulo de manejo de logs
 from .managelog import manejo_errores
 
 manejo_errores(nivel_warning="ignore", verbose=False) 
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Control de rate-limit y conteo
+_last_sent_time = defaultdict(lambda: 0.0)
+RATE_LIMIT_SECONDS = 3.0
+_sent_count = 0
+_limited_count = 0
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
@@ -55,9 +64,19 @@ async def _event_consumer(bot: Bot):
             elif ev.kind == "GESTO":
                 name = ev.payload.get("name")
                 text = GESTO_TO_TEXT.get(name)
+                now = time.time()
                 if text:
+                    elapsed = now - _last_sent_time[name]
+                    if elapsed < RATE_LIMIT_SECONDS:
+                        global _limited_count
+                        _limited_count += 1
+                        logger.info(f"Rate-limit: gesto {name} ignorado (solo {elapsed:.2f}s desde el último envío) | Bloqueados: {_limited_count}")
+                        continue
                     await bot.send_message(chat_id, text)
-                    logger.info(f"Gesto {name} → enviado a {chat_id} ({text})")
+                    _last_sent_time[name] = now
+                    global _sent_count
+                    _sent_count += 1
+                    logger.info(f"Gesto {name} → enviado a {chat_id} ({text}) | Total enviados: {_sent_count}")
                 else:
                     logger.warning(f"Gesto {name} no reconocido.")
 
@@ -85,11 +104,15 @@ async def start_bot():
     asyncio.create_task(_event_consumer(bot))
     logger.info("Bot iniciado. Esperando mensajes...")
 
-    try:
-        await dp.start_polling(bot)
-    finally:
-        logger.info("Cerrando bot y liberando recursos...")
-        await bot.session.close()
+    while True:
+        try:
+            await dp.start_polling(bot)
+        except Exception as e:
+            logger.error(f"Conexión perdida con Telegram: {e}. Reintentando en 5 s...")
+            await asyncio.sleep(5)
+        else:
+            break
+    await bot.session.close()
 
 if __name__ == "__main__":
     try:

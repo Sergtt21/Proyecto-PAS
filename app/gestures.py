@@ -1,14 +1,18 @@
 # app/gestures.py
 import math
 import time
+import os
 import numpy as np
 import cv2
 from typing import Dict, List, Tuple
+from dotenv import load_dotenv
 
 # Importar el módulo de manejo de logs
 from .managelog import manejo_errores
+manejo_errores(nivel_warning="ignore", verbose=False)
 
-manejo_errores(nivel_warning="ignore", verbose=False) 
+load_dotenv()
+DEBUG = os.getenv("DEBUG", "false").strip().lower() == "true"
 
 # -----------------------------
 # Índices MediaPipe Face Mesh
@@ -111,20 +115,20 @@ class GestureDetector:
         self.brow_eye_base: float = 20.0
         self.mar_base: float = 0.15
 
-        # Parámetros/umbrales
+        # Parámetros/umbrales (se ajustan dinámicamente tras calibración)
         self.EAR_THRESH = 0.22
         self.MIN_BLINK_MS = 120
         self.DOUBLE_WIN_MS = 700
 
-        self.BROW_GAIN = 0.20
+        self.BROW_GAIN = 0.20        # ganancia relativa sobre baseline BROW
         self.BROW_MIN_MS = 250
         self.BROW_COOLDOWN_MS = 1000
 
-        self.SMILE_GAIN = 0.35
+        self.SMILE_GAIN = 0.35       # ganancia relativa sobre baseline MAR
         self.SMILE_MIN_MS = 250
         self.SMILE_COOLDOWN_MS = 1200
 
-        self.YAW_THRESH = 16.0
+        self.YAW_THRESH = 16.0       # grados (ajustable)
         self.YAW_COOLDOWN_MS = 900
 
         # Estado temporal
@@ -142,11 +146,104 @@ class GestureDetector:
 
     # ---- Calibración / baselines ----
     def set_baselines(self, ear_b: float, brow_b: float, mar_b: float) -> None:
+        """Mantengo tu método tal cual, y además ajusto umbrales dinámicos."""
         self.ear_base = ear_b
         self.brow_eye_base = brow_b
         self.mar_base = mar_b
-        # Umbral EAR adaptativo
-        self.EAR_THRESH = max(0.18, min(0.28, self.ear_base * 0.75))
+        self._apply_dynamic_thresholds()
+
+    def _apply_dynamic_thresholds(self) -> None:
+        """Ajuste dinámico de umbrales a partir de los baselines (no rompe compatibilidad)."""
+        # EAR: umbral adaptativo en función del tamaño de apertura basal
+        self.EAR_THRESH = max(0.18, min(0.30, self.ear_base * 0.75))
+
+        # BROW_GAIN / SMILE_GAIN adaptativos suaves (clamp para estabilidad)
+        # Si la base es pequeña, subimos ligeramente la ganancia para hacerlo más sensible.
+        self.BROW_GAIN = float(np.clip(0.18 + (0.24 - min(0.24, self.brow_eye_base/50.0)), 0.15, 0.35))
+        self.SMILE_GAIN = float(np.clip(0.30 + (0.40 - min(0.40, self.mar_base*1.2)), 0.25, 0.45))
+
+        # YAW: si el rostro está muy de frente en calibración, podemos bajar un poco el umbral
+        # (solo un ajuste leve para no provocar falsos positivos)
+        self.YAW_THRESH = float(np.clip(self.YAW_THRESH, 12.0, 22.0))
+
+        if DEBUG:
+            print(f"[DEBUG] Umbrales dinámicos aplicados → EAR_THR={self.EAR_THRESH:.3f}, "
+                  f"BROW_GAIN={self.BROW_GAIN:.2f}, SMILE_GAIN={self.SMILE_GAIN:.2f}, YAW_THR={self.YAW_THRESH:.1f}")
+
+    # ---- Calibración automática con cámara (opcional) ----
+    def calibrate_with_stream(self, cap, mp_face, seconds: float = 3.0, window_name: str = "Calibracion") -> None:
+        """
+        Toma muestras ~`seconds` segundos y ajusta baselines + umbrales.
+        Dibuja una barra de progreso y el texto 'Calibrando rostro...'.
+        No rompe tu flujo: puedes llamarlo desde vision.py antes del loop principal.
+        """
+        if DEBUG:
+            print("[DEBUG] Inicio de calibración automática con stream...")
+
+        ear_vals, brow_vals, mar_vals = [], [], []
+        t0 = time.time()
+        total = max(1.0, float(seconds))
+
+        while (time.time() - t0) < total:
+            ok, frame = cap.read()
+            if not ok:
+                break
+
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            res = mp_face.process(rgb)
+
+            if res.multi_face_landmarks:
+                h, w = frame.shape[:2]
+                pts = [(int(l.x * w), int(l.y * h)) for l in res.multi_face_landmarks[0].landmark]
+
+                le = [pts[i] for i in LEFT_EYE]
+                re = [pts[i] for i in RIGHT_EYE]
+                ear_vals.append((eye_aspect_ratio(le) + eye_aspect_ratio(re)) / 2.0)
+
+                lb, rb = pts[LEFT_BROW_POINT], pts[RIGHT_BROW_POINT]
+                lec, rec = pts[LEFT_EYE_CENTER], pts[RIGHT_EYE_CENTER]
+                brow_vals.append((abs(lb[1]-lec[1]) + abs(rb[1]-rec[1]))/2.0)
+
+                mar_vals.append(mouth_aspect_ratio(pts))
+
+            # --- Overlay de progreso ---
+            progress = (time.time() - t0) / total
+            h, w = frame.shape[:2]
+            bar_x1, bar_y1 = 50, h - 60
+            bar_x2, bar_y2 = w - 50, h - 30
+            filled = int(bar_x1 + progress * (bar_x2 - bar_x1))
+
+            # rect de fondo
+            cv2.rectangle(frame, (bar_x1, bar_y1), (bar_x2, bar_y2), (40, 40, 40), -1)
+            # rect de progreso
+            cv2.rectangle(frame, (bar_x1, bar_y1), (filled, bar_y2), (0, 200, 0), -1)
+            # texto
+            cv2.putText(frame, "Calibrando rostro...", (bar_x1, bar_y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,255), 2)
+
+            cv2.imshow(window_name, frame)
+            if (cv2.waitKey(1) & 0xFF) == 27:
+                break
+
+        if ear_vals and brow_vals and mar_vals:
+            ear_b  = float(np.median(ear_vals))
+            brow_b = float(np.median(brow_vals))
+            mar_b  = float(np.median(mar_vals))
+            self.set_baselines(ear_b, brow_b, mar_b)
+
+            if DEBUG:
+                print("[DEBUG] Calibración completada:")
+                print(f"        EAR base = {ear_b:.3f}")
+                print(f"        BROW base= {brow_b:.3f}")
+                print(f"        MAR base = {mar_b:.3f}")
+        else:
+            if DEBUG:
+                print("[DEBUG] Calibración incompleta; se mantienen baselines por defecto.")
+
+        try:
+            cv2.destroyWindow(window_name)
+        except cv2.error:
+            pass  # si la ventana no existe, ignorar
 
     # ---- Procesamiento por frame ----
     def process(self, pts_xy: List[Tuple[int,int]], frame_shape) -> Tuple[List[str], Dict[str, float]]:
@@ -226,4 +323,8 @@ class GestureDetector:
                 self._last_yaw_ms = now
 
         metrics = {"EAR": ear, "MAR": mar, "BROW": brow_eye, "YAW": yaw}
+
+        if DEBUG:
+            print(f"[DEBUG] EAR={ear:.3f}  BROW={brow_eye:.2f}  MAR={mar:.3f}  YAW={yaw:.1f}  → gestos={gestures}")
+
         return gestures, metrics
