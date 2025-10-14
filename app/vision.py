@@ -53,7 +53,7 @@ def _to_xy(landmarks, shape):
 def _dibujar_hud(frame, fsm: FSM, metricas):
     h, w = frame.shape[:2]
     overlay = frame.copy()
-    cv2.rectangle(overlay, (20, 20), (w-20, 160), (0, 0, 0), -1)
+    cv2.rectangle(overlay, (20, 20), (w-20, 190), (0, 0, 0), -1)
     frame[:] = cv2.addWeighted(overlay, 0.35, frame, 0.65, 0)
 
     y = 50
@@ -64,6 +64,17 @@ def _dibujar_hud(frame, fsm: FSM, metricas):
     if metricas:
         s = f"EAR:{metricas.get('EAR',0):.3f}  MAR:{metricas.get('MAR',0):.3f}  BROW:{metricas.get('BROW',0):.1f}  YAW:{metricas.get('YAW',0):.1f}°"
         cv2.putText(frame, s, (40, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1)
+    if "FPS" in metricas:
+        fps = metricas["FPS"]
+        if fps >= 30:
+            fps_color = (0, 255, 0)      # Verde
+        elif fps >= 25:
+            fps_color = (0, 255, 255)    # Amarillo
+        else:
+            fps_color = (0, 0, 255)      # Rojo
+
+        cv2.putText(frame, f"FPS: {fps:.1f}", (w - 170, 60),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, fps_color, 2)
 
 def start_gesture_detection():
     cap = cv2.VideoCapture(0)
@@ -115,6 +126,10 @@ def start_gesture_detection():
 
     # ---------- Loop principal ----------
     metricas = {}
+    # Variables para cálculo de FPS
+    prev_time = time.time()
+    fps = 0.0
+    alpha = 0.2
     while True:
         ok, frame = cap.read()
         if not ok:
@@ -142,7 +157,16 @@ def start_gesture_detection():
 
         cv2.putText(frame, "ESC para salir", (30, frame.shape[0]-20),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 1)
+        # --- Cálculo de FPS ---
+        current_time = time.time()
+        delta = current_time - prev_time
+        prev_time = current_time
 
+        if delta > 0:
+            instant_fps = 1.0 / delta
+            fps = (alpha * instant_fps) + (1 - alpha) * fps
+        metricas["FPS"] = fps
+        _dibujar_hud(frame, fsm, metricas)
         cv2.imshow("Vision", frame)
         if (cv2.waitKey(1) & 0xFF) == 27:
             break
