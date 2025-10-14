@@ -47,7 +47,9 @@ required_vars = [
     "REDIS_HOST",
     "REDIS_PORT",
     "REDIS_DB",
-    "BUS_QUEUE"
+    "BUS_QUEUE",
+    "DEMO_MODE",
+    "DEBUG"
 ]
 
 missing = [v for v in required_vars if not os.getenv(v)]
