@@ -327,4 +327,8 @@ class GestureDetector:
         if DEBUG:
             print(f"[DEBUG] EAR={ear:.3f}  BROW={brow_eye:.2f}  MAR={mar:.3f}  YAW={yaw:.1f}  → gestos={gestures}")
 
+<<<<<<< HEAD
         return gestures, metrics
+=======
+        return gestures, metrics
+>>>>>>> origin/master
