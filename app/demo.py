@@ -48,8 +48,8 @@ if MODO_PRUEBA:
                     ESTADO_ACTUAL = ESTADO_DETECTADO
                     print(f"[{tiempo_actual:.2f}] Detectado: {GESTO_ACTUAL}")
             elif ESTADO_ACTUAL == ESTADO_DETECTADO:
-                  ESTADO_ACTUAL = ESTADO_CONFIRMADO
-                  print(f"[{tiempo_actual:.2f}] Confirmado: {GESTO_ACTUAL}. Enviando...")
+                    ESTADO_ACTUAL = ESTADO_CONFIRMADO
+                    print(f"[{tiempo_actual:.2f}] Confirmado: {GESTO_ACTUAL}. Enviando...")
             elif ESTADO_ACTUAL == ESTADO_CONFIRMADO:
                 enviar_gesto(GESTO_ACTUAL)
                 ESTADO_ACTUAL = ESTADO_IDLE

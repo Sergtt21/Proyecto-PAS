@@ -13,7 +13,6 @@ from .bus import get, Event  # import relativo
 
 # Importar el módulo de manejo de logs
 from .managelog import manejo_errores
-
 manejo_errores(nivel_warning="ignore", verbose=False) 
 
 logging.basicConfig(
@@ -22,9 +21,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Control de rate-limit y conteo
-_last_sent_time = defaultdict(lambda: 0.0)
-RATE_LIMIT_SECONDS = 3.0
+# Control de rate-limit
+_last_sent_time_by_gesture = defaultdict(lambda: 0.0)
+_global_last_sent_time = 0.0
+RATE_LIMIT_SECONDS = float(os.getenv("RATE_LIMIT_SECONDS", "10.0").strip() or 10.0)
 _sent_count = 0
 _limited_count = 0
 
@@ -35,14 +35,15 @@ if not TOKEN:
 
 # Mapeo de gestos → mensajes
 GESTO_TO_TEXT = {
-    "DOBLE_PARPADEO":   "Hola 👋",
-    "CEJAS_ARRIBA":     "Ya voy 🚗",
+    "DOBLE_PARPADEO":   "Hola, como estas ?👋",
+    "CEJAS_ARRIBA":     "Gracias, Hasta pronto🙌",
     "SONRISA":          "Todo bien 😄",
-    "CABEZA_DERECHA":   "OK ✅",
-    "CABEZA_IZQUIERDA": "No ❌",
+    "CABEZA_DERECHA":   "Listo ✅",
+    "CABEZA_IZQUIERDA": "No puedo ❌",
 }
 
 async def _event_consumer(bot: Bot):
+    global _global_last_sent_time, _sent_count, _limited_count
     loop = asyncio.get_running_loop()
     while True:
         try:
@@ -55,26 +56,41 @@ async def _event_consumer(bot: Bot):
                 logger.warning("Evento recibido sin 'chat_id'.")
                 continue
 
+            # Rate-limit GLOBAL: si ha pasado menos de RATE_LIMIT_SECONDS desde el último envío, no enviar nada.
+            now = time.time()
+            if (now - _global_last_sent_time) < RATE_LIMIT_SECONDS:
+                _limited_count += 1
+                logger.info(
+                    f"Rate-limit GLOBAL: evento {ev.kind} ignorado "
+                    f"({RATE_LIMIT_SECONDS - (now - _global_last_sent_time):.1f}s restantes) | Bloqueados: {_limited_count}"
+                )
+                continue
+
             if ev.kind == "SEND_TEXT":
                 text = ev.payload.get("text", "")
                 if text:
                     await bot.send_message(chat_id, text)
-                    logger.info(f"📩 Enviado a {chat_id}: {text}")
+                    _global_last_sent_time = time.time()
+                    _sent_count += 1
+                    logger.info(f"📩 Enviado a {chat_id}: {text} | Total enviados: {_sent_count}")
 
             elif ev.kind == "GESTO":
                 name = ev.payload.get("name")
                 text = GESTO_TO_TEXT.get(name)
-                now = time.time()
                 if text:
-                    elapsed = now - _last_sent_time[name]
-                    if elapsed < RATE_LIMIT_SECONDS:
-                        global _limited_count
+                    # (opcional) rate-limit por gesto además del global
+                    elapsed_g = now - _last_sent_time_by_gesture[name]
+                    if elapsed_g < RATE_LIMIT_SECONDS:
                         _limited_count += 1
-                        logger.info(f"Rate-limit: gesto {name} ignorado (solo {elapsed:.2f}s desde el último envío) | Bloqueados: {_limited_count}")
+                        logger.info(
+                            f"Rate-limit por gesto: {name} ignorado "
+                            f"(faltan {RATE_LIMIT_SECONDS - elapsed_g:.1f}s) | Bloqueados: {_limited_count}"
+                        )
                         continue
+
                     await bot.send_message(chat_id, text)
-                    _last_sent_time[name] = now
-                    global _sent_count
+                    _last_sent_time_by_gesture[name] = time.time()
+                    _global_last_sent_time = _last_sent_time_by_gesture[name]
                     _sent_count += 1
                     logger.info(f"Gesto {name} → enviado a {chat_id} ({text}) | Total enviados: {_sent_count}")
                 else:
